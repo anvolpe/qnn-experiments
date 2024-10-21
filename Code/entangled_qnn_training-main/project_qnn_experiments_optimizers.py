@@ -292,7 +292,7 @@ def diff_evolution_experiment(objective,initial_param_values,bounds=default_boun
                 start = time.time()
                 #TODO try to use callback function creator, signature might cause problems due to missmatch
                 temp_callback_DiffEvolution=get_callback_DiffEvolution(objective_func=objective)
-                res = differential_evolution(objective, bounds, maxiter=max_iter, callback=temp_callback_DiffEvolution)
+                res = differential_evolution(objective, bounds, maxiter=max_iter, callback=temp_callback_DiffEvolution, updating='immediate', recombination=0.85)
                 # specifications of this optimizer run
                 results[run_n] = {"maxiter": max_iter}
                 # result info
