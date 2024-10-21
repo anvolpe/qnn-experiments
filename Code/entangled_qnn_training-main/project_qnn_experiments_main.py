@@ -13,8 +13,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from multiprocessing import cpu_count
 from sgd_for_scipy import *
 import os
-from scipy.optimize import minimize, dual_annealing
-import pyswarms as ps
+from scipy.optimize import minimize, dual_annealing, differential_evolution
+#import pyswarms as ps
 
 import re
 
@@ -103,7 +103,7 @@ def single_optimizer_experiment(conf_id, run_id, data_type, num_data_points, s_r
         # run optimizer experiments
         sgd_optimizers = [sgd, rmsprop, adam]
         #sgd_optimizers = [adam]
-        optimizers = [nelder_mead_experiment, bfgs_experiment, cobyla_experiment, powell_experiment, slsqp_experiment, sgd_experiment, dual_annealing_experiment]
+        optimizers = [diff_evolution_experiment]
         
         # TODO: ProcessPoolExecutor: funktioniert nicht, weil pickle verwendet wird und objective eine lokal definierte Funktion ist 
         # (AttributeError: Can't pickle local object 'test_experiment.<locals>.objective')
@@ -122,7 +122,7 @@ def single_optimizer_experiment(conf_id, run_id, data_type, num_data_points, s_r
                     #result_dict[opt_name] = future.result()
                     result_dict[databatch_key][opt_name] = result
             elif opt == particle_swarm_experiment:
-                result = particle_swarm_experiment(objective_for_pso)
+                result = particle_swarm_experiment(objective_for_pso)   
                 opt_name = opt.__name__.removesuffix('_experiment')
                 result_dict[databatch_key][opt_name] = result
             else:

@@ -9,8 +9,8 @@ from victor_thesis_metrics import *
 from victor_thesis_experiments_main import *
 
 from sgd_for_scipy import *
-from scipy.optimize import minimize, dual_annealing
-import pyswarms as ps
+from scipy.optimize import minimize, dual_annealing, differential_evolution
+#import pyswarms as ps
 
 
 #no_of_runs = 1
@@ -70,6 +70,17 @@ def saveIntermResult_duAn(x, f, context):
     global nit
     fun_all.append(float(fun))
     nit +=1 
+
+#mit oben eingeführter callback ersetzten
+def get_callback_DiffEvolution(objective_func):
+    def callback_DiffEvolution(x, convergence):
+        global nit
+        fun = objective_func(x)
+        if(nit%10==0):
+            fun_all.append(float(fun))
+        nit += 1
+    return callback_DiffEvolution
+
 
 def nelder_mead_experiment(objective,initial_param_values,bounds=None):
     results = {"type": "gradient-free"}
@@ -267,6 +278,30 @@ def particle_swarm_experiment(objective, initial_param_values,bounds=None):
                 results[run_n]["ftol"] = optimizer.ftol
                 results[run_n]["callback"] = list(optimizer.cost_history) # stimmt das??
                 
+                global nit 
+                nit = 0
+                run_n += 1
+    return results
+
+def diff_evolution_experiment(objective,initial_param_values,bounds=default_bounds):
+    results = {"type": "gradient-free"} 
+    run_n = 0
+    for max_iter in max_iters:
+        #for tol in tols:
+        #for catol in tols:
+                start = time.time()
+                #TODO try to use callback function creator, signature might cause problems due to missmatch
+                temp_callback_DiffEvolution=get_callback_DiffEvolution(objective_func=objective)
+                res = differential_evolution(objective, bounds, maxiter=max_iter, callback=temp_callback_DiffEvolution)
+                # specifications of this optimizer run
+                results[run_n] = {"maxiter": max_iter}
+                # result info
+                for attribute in res.keys():
+                    results[run_n][attribute] = str(res[attribute])
+                results[run_n]["callback"] = list(fun_all)
+                #print("es folgen die funktionswerte von diff evolution")
+                #print(fun_all)
+                fun_all.clear()
                 global nit 
                 nit = 0
                 run_n += 1
