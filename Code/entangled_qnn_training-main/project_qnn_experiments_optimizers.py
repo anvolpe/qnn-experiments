@@ -1,4 +1,5 @@
 import time
+import csv
 from datetime import datetime
 from qnns.cuda_qnn import CudaPennylane
 
@@ -11,6 +12,7 @@ from victor_thesis_experiments_main import *
 from sgd_for_scipy import *
 from scipy.optimize import minimize, dual_annealing
 import pyswarms as ps
+import pygad
 
 import numpy as np
 import torch
@@ -242,6 +244,55 @@ def dual_annealing_experiment(objective,initial_param_values,bounds=default_boun
                 run_n += 1
     return results
 
+def genetic_algorithm_experiment(objective,initial_param_values,bounds=default_bounds): # macht es sinn default_bounds (dual_annealing) zu benutzen?
+    results = {"type": "gradient-free"}
+    run_n = 0
+    # Set-up parameters
+    options = {'pop_size': 20, 'mutation_rate': 0.1, 'crossover_rate': 0.7, 'num_generations': 50}
+    num_genes = len(initial_param_values)  # Number of parameters (dimensions)
+    gene_space = [{'low': b[0], 'high': b[1]} for b in default_bounds]
+
+    for max_iter in max_iters:
+        #for tol in tols:
+        #for catol in tols:
+            # Define the fitness function for the GA
+            def fitness_function(solution):
+                return -objective(solution)  # Stimmt das?: pygad maximizes fitness->minimize by negating the objective
+                # return self.objective(individual).item()
+
+            # Create instance of GA
+            ga_instance = pygad.GA(
+                num_generations = max_iter, 
+                num_parents_mating = int(options['pop_size'] * 0.5),
+                fitness_func = fitness_function, 
+                sol_per_pop = options['pop_size'], 
+                num_genes = num_genes, 
+                gene_space = gene_space,
+                parent_selection_type = "sss",
+                crossover_type = "single_point",
+                crossover_probability= options['crossover_rate'],
+                mutation_type = "random",
+                mutation_probability = options['mutation_rate'],
+                on_generation = None
+            )
+            
+            # Perform optimization
+            start = time.time()
+            ga_instance.run()
+            duration = time.time() - start
+
+            solution, solution_fitness = ga_instance.best_solution() 
+
+            # result info
+            results[run_n] = {"maxiter": max_iter, "duration": duration}
+            results[run_n]["fun"] = -solution_fitness  # Since we negated the objective
+            results[run_n]["x"] = solution.tolist()
+            results[run_n]["callback"] = ga_instance.best_solutions_fitness  # Fitness values over generations
+            
+            run_n += 1
+
+    return results
+
 def particle_swarm_experiment(objective, initial_param_values,bounds=None):
     results = {"type": "gradient-free"} 
     run_n = 0
@@ -282,67 +333,66 @@ def particle_swarm_experiment(objective, initial_param_values,bounds=None):
 # TODO: funktioniert noch nicht
 
 # Hyperparameter
-pop_size = 20  
-mutation_rate = 0.1
-crossover_rate = 0.7
-num_generations = 50
+# pop_size = 20  
+# mutation_rate = 0.1
+# crossover_rate = 0.7
+# num_generations = 50
 
-def genetic_algorithm_experiment(self, conf_id, data_type, num_data_points, s_rank, unitary, data_points):
-        # Initial GA setup
-        self.data_points = data_points
-        self.y_true = torch.matmul(unitary, data_points).conj()
-        def fitness(individual):
-            return self.objective(individual).item()
-        def initialize_population():
-            population = []
-            for _ in range(self.pop_size):
-                individual = np.random.uniform(low=self.bounds[0][0], high=self.bounds[0][1], size=self.dimensions)
-                population.append(individual)
-            return np.array(population)
-        def crossover(parent1, parent2):
-            if np.random.rand() < self.crossover_rate:
-                 # Zufälligen Punkt zwischen 1 und der Anzahl der Dimensionen auswählen
-                crossover_point = np.random.randint(1, self.dimensions)
-                 # Gene von parent1 bis Crossover-Punkt und Gene von parent2 ab dem Crossover-Punkt kombinieren
-                child1 = np.concatenate((parent1[:crossover_point], parent2[crossover_point:]))
-                child2 = np.concatenate((parent2[:crossover_point], parent1[crossover_point:]))
-                return child1, child2
-            else:
-                return parent1, parent2
-        def mutate(individual):
-            #über alle Dimensionen und überprüfen, ob Mutatuon durchgeführt werden soll
-            for i in range(self.dimensions):
-                if np.random.rand() < self.mutation_rate:
-                    individual[i] = np.random.uniform(self.bounds[i][0], self.bounds[i][1])
-            return individual
-        # Main Loop
-        population = initialize_population()
-        best_individual = None
-        best_fitness = float('inf')
-        for generation in range(self.num_generations):
-            fitness_values = np.array([fitness(ind) for ind in population])
-            sorted_idx = np.argsort(fitness_values)
-            population = population[sorted_idx]
-            fitness_values = fitness_values[sorted_idx]
-            if fitness_values[0] < best_fitness:
-                best_fitness = fitness_values[0]
-                best_individual = population[0]
-           # Keep top 2 individuals for elitism(die besten Individuen einer Generation unverändert in die nächste Generation)
-            next_generation = population[:2] 
-            while len(next_generation) < self.pop_size:
-                parent1, parent2 = population[np.random.randint(0, self.pop_size // 2)], population[np.random.randint(0, self.pop_size // 2)]
-                child1, child2 = crossover(parent1, parent2)
-                child1 = mutate(child1)
-                child2 = mutate(child2)
-                next_generation = np.vstack((next_generation, child1, child2))
-            population = next_generation[:self.pop_size]
-            print(f"Generation {generation}: Best fitness = {best_fitness}")
-        #Save results 
-        os.makedirs("experimental_results/results/optimizer_results", exist_ok=True)
-        with open(f"experimental_results/results/optimizer_results/conf_{conf_id}_ga.csv", mode="w") as file:
-            writer = csv.writer(file)
-            writer.writerow(["Generation", "Best_Fitness", "Best_Individual"])
-            writer.writerow([generation, best_fitness, best_individual])
-        return {"best_individual": best_individual, "best_fitness": best_fitness}
-    
+# def genetic_algorithm_experiment(self, conf_id, data_type, num_data_points, s_rank, unitary, data_points):
+#         # Initial GA setup
+#         self.data_points = data_points
+#         self.y_true = torch.matmul(unitary, data_points).conj()
+#         def fitness(individual):
+#             return self.objective(individual).item()
+#         def initialize_population():
+#             population = []
+#             for _ in range(self.pop_size):
+#                 individual = np.random.uniform(low=self.bounds[0][0], high=self.bounds[0][1], size=self.dimensions)
+#                 population.append(individual)
+#             return np.array(population)
+#         def crossover(parent1, parent2):
+#             if np.random.rand() < self.crossover_rate:
+#                  # Zufälligen Punkt zwischen 1 und der Anzahl der Dimensionen auswählen
+#                 crossover_point = np.random.randint(1, self.dimensions)
+#                  # Gene von parent1 bis Crossover-Punkt und Gene von parent2 ab dem Crossover-Punkt kombinieren
+#                 child1 = np.concatenate((parent1[:crossover_point], parent2[crossover_point:]))
+#                 child2 = np.concatenate((parent2[:crossover_point], parent1[crossover_point:]))
+#                 return child1, child2
+#             else:
+#                 return parent1, parent2
+#         def mutate(individual):
+#             #über alle Dimensionen und überprüfen, ob Mutatuon durchgeführt werden soll
+#             for i in range(self.dimensions):
+#                 if np.random.rand() < self.mutation_rate:
+#                     individual[i] = np.random.uniform(self.bounds[i][0], self.bounds[i][1])
+#             return individual
+#         # Main Loop
+#         population = initialize_population()
+#         best_individual = None
+#         best_fitness = float('inf')
+#         for generation in range(self.num_generations):
+#             fitness_values = np.array([fitness(ind) for ind in population])
+#             sorted_idx = np.argsort(fitness_values)
+#             population = population[sorted_idx]
+#             fitness_values = fitness_values[sorted_idx]
+#             if fitness_values[0] < best_fitness:
+#                 best_fitness = fitness_values[0]
+#                 best_individual = population[0]
+#            # Keep top 2 individuals for elitism(die besten Individuen einer Generation unverändert in die nächste Generation)
+#             next_generation = population[:2] 
+#             while len(next_generation) < self.pop_size:
+#                 parent1, parent2 = population[np.random.randint(0, self.pop_size // 2)], population[np.random.randint(0, self.pop_size // 2)]
+#                 child1, child2 = crossover(parent1, parent2)
+#                 child1 = mutate(child1)
+#                 child2 = mutate(child2)
+#                 next_generation = np.vstack((next_generation, child1, child2))
+#             population = next_generation[:self.pop_size]
+#             print(f"Generation {generation}: Best fitness = {best_fitness}")
+#         #Save results 
+#         os.makedirs("experimental_results/results/optimizer_results", exist_ok=True)
+#         with open(f"experimental_results/results/optimizer_results/conf_{conf_id}_ga.csv", mode="w") as file:
+#             writer = csv.writer(file)
+#             writer.writerow(["Generation", "Best_Fitness", "Best_Individual"])
+#             writer.writerow([generation, best_fitness, best_individual])
+#         return {"best_individual": best_individual, "best_fitness": best_fitness}
     
