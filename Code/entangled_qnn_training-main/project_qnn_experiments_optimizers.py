@@ -286,23 +286,34 @@ def particle_swarm_experiment(objective, initial_param_values,bounds=None):
 def diff_evolution_experiment(objective,initial_param_values,bounds=default_bounds):
     results = {"type": "gradient-free"} 
     run_n = 0
+
+    #recombinationIndices={0.7,0.8,0.9,1}
+    recombinationIndices={0.95}
+    #popSizes={5,10,15}
+    popSizes={5}
+    #tols={1e-10,1e-5,0.01}
+    tols={1e-5, 1e-10}
     for max_iter in max_iters:
-        #for tol in tols:
-        #for catol in tols:
-                start = time.time()
-                #TODO try to use callback function creator, signature might cause problems due to missmatch
-                temp_callback_DiffEvolution=get_callback_DiffEvolution(objective_func=objective)
-                res = differential_evolution(objective, bounds, maxiter=max_iter, callback=temp_callback_DiffEvolution, updating='immediate', recombination=0.85, popsize= 5)
-                # specifications of this optimizer run
-                results[run_n] = {"maxiter": max_iter}
-                # result info
-                for attribute in res.keys():
-                    results[run_n][attribute] = str(res[attribute])
-                results[run_n]["callback"] = list(fun_all)
-                #print("es folgen die funktionswerte von diff evolution")
-                #print(fun_all)
-                fun_all.clear()
-                global nit 
-                nit = 0
-                run_n += 1
+                for reCombIndex in recombinationIndices:
+                    for popSize in popSizes:
+                            for tol in tols:
+                                #for tol in tols:
+                                #for catol in tols:
+                                start = time.time() 
+                                #Attention: standart parameters popsize=15, recombination 0.7 --->around 15min calculationtime
+                                temp_callback_DiffEvolution=get_callback_DiffEvolution(objective_func=objective)
+                                res = differential_evolution(objective, bounds, maxiter=max_iter, callback=temp_callback_DiffEvolution, updating='immediate'
+                                                            , recombination=reCombIndex, popsize= popSize, tol=tol)
+
+                                duration = time.time() - start
+                                results[run_n] = {"maxiter": max_iter,'recombination': reCombIndex, 'popsize':popSize, 'tol':tol, 'duration':duration}
+                                
+                                # result info
+                                for attribute in res.keys():
+                                    results[run_n][attribute] = str(res[attribute])
+                                results[run_n]["callback"] = list(fun_all)
+                                fun_all.clear()
+                                global nit 
+                                nit = 0
+                                run_n += 1
     return results
